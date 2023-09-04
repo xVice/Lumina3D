@@ -1,8 +1,8 @@
 ﻿using Assimp;
-using ECS3D.ECSEngine.Control;
 using Lumina3D.Components;
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
+using Silk.NET.Input;
+using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -15,66 +15,111 @@ namespace Lumina3D.Internal
 {
     public class Renderer
     {
-        private ECSControl control;
+        private Engine engine;
+        private IWindow SilkView = null;
+        private GL gl = null;
+        private IInputContext inputCtx = null;
 
-        private Engine Engine { get => control.Engine; }
 
-        public Renderer(ECSControl control)
+        public Renderer(Engine engine)
         {
-            this.control = control;
+            this.engine = engine;
+        }
+
+        public IWindow GetWindow()
+        {
+            return SilkView;
+        }
+
+        public GL GetGL()
+        {
+            return gl;
+        }
+
+        public IInputContext GetInputContext()
+        {
+            return inputCtx;
+        }
+
+        public void InitializeGL()
+        {
+            SilkView = Window.Create(WindowOptions.Default);
+            gl = null;
+            inputCtx = null;
+
+            //Setup gl and input context
+            SilkView.Load += () =>
+            {
+                gl = SilkView.CreateOpenGL();
+                inputCtx = SilkView.CreateInput();
+            };
+
+            //handle resizes
+            SilkView.FramebufferResize += s =>
+            {
+                // Adjust the viewport to the new window size
+                gl.Viewport(s);
+            };
+
+            //The render function
+            SilkView.Render += delta =>
+            {
+                //Add skybox, imgui or other draws here
+                engine.DeltaTime = delta;
+                engine.Update();
+                DrawFrame();
+
+            };
+        }
+
+        public GL Gl()
+        {
+            return gl;
         }
 
         public void DrawFrame()
         {
 
-            if (Engine.activeCamera != null)
+            if (engine.activeCamera != null)
             {
-                var activeCam = Engine.activeCamera;
+                var activeCam = engine.activeCamera;
 
-                control.GL().MakeCurrent();
+                SilkView.MakeCurrent();
 
-                GL.ClearColor(Color.Gray);
+                gl.ClearColor(Color.Gray);
 
-                int queryId;
-
-                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-                GL.DepthFunc(DepthFunction.Less);
-                GL.Enable(EnableCap.PolygonOffsetFill);
-                GL.Enable(EnableCap.DepthTest);
-                GL.Enable(EnableCap.CullFace);
-                GL.CullFace(CullFaceMode.Back);
-                GL.GenQueries(1, out queryId);
-                GL.BeginQuery(QueryTarget.SamplesPassed, queryId);
-
+                gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                gl.DepthFunc(DepthFunction.Less);
+                gl.Enable(EnableCap.PolygonOffsetFill);
+                gl.Enable(EnableCap.DepthTest);
+                gl.Enable(EnableCap.CullFace);
+                gl.CullFace(GLEnum.CullFaceMode);
 
                 var viewMatrix = activeCam.GetViewMatrix();
                 var projectionMatrix = activeCam.GetProjectionMatrix();
 
-                // Render the skybox first
-                //RenderSkybox();
-
-                // Render the mesh
-                foreach (var renderer in Engine.GetComponents<MeshRenderer>())
+                foreach (var renderer in engine.GetComponents<MeshRenderer>())
                 {
+                    uint queryId;
+                    gl.GenQueries(1, out queryId);
+                    gl.BeginQuery(QueryTarget.SamplesPassed, queryId);
+                    renderer.Render(activeCam, viewMatrix, projectionMatrix, new List<System.Numerics.Vector3> { new System.Numerics.Vector3(0, 0, 0) });
+                    int result;
+                    gl.GetQueryObject(queryId, QueryObjectParameterName.QueryResult, out result);
 
-                    renderer.Render(activeCam, viewMatrix, projectionMatrix, new List<Vector3> { new Vector3(0, 0, 0) });
-
+                    // Delete the query object
+                    gl.DeleteQueries(1, queryId);
+                    if (result == 0)
+                    {
+                        renderer.Disable();
+                    }
+                    else
+                    {
+                        renderer.Enable();
+                    }
                 }
 
-
-                GL.Disable(EnableCap.PolygonOffsetFill);
-                GL.EndQuery(QueryTarget.SamplesPassed);
-
-                // Get query result
-                int result;
-                GL.GetQueryObject(queryId, GetQueryObjectParam.QueryResult, out result);
-
-                // Delete the query object
-                GL.DeleteQueries(1, ref queryId);
-
-                // Swap buffers
-                control.GL().SwapBuffers();
-                Thread.Sleep(1000);
+                SilkView.SwapBuffers();
             }
         }
 

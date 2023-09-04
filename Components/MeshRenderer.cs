@@ -1,11 +1,10 @@
 ﻿using Lumina3D.Components;
 using Lumina3D.Internal;
 using Lumina3D;
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
 using System.Collections.Generic;
 using System.Drawing;
 using System;
+using System.Numerics;
 
 namespace Lumina3D.Components
 {
@@ -30,15 +29,15 @@ namespace Lumina3D.Components
 
         }
 
-        public void Render(CameraComponent cam, Matrix4 viewMatrix, Matrix4 projectionMatrix,List<Vector3> lightDirections)
+        public void Render(CameraComponent cam, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix,List<Vector3> lightDirections)
         {
 
 
-            Matrix4 worldMatrix = transformComponent.GetModelMatrix();
-            Matrix4 mvpMatrix = worldMatrix * viewMatrix * projectionMatrix;
+            Matrix4x4 worldMatrix = transformComponent.GetModelMatrix();
+            Matrix4x4 mvpMatrix = worldMatrix * viewMatrix * projectionMatrix;
             if (meshComponent.Enabled)
             {
-                meshComponent.Draw(cam, mvpMatrix, worldMatrix, cam.position);
+                meshComponent.Draw(cam, mvpMatrix, worldMatrix, cam.Position);
             }
 
         }

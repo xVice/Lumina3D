@@ -1,22 +1,17 @@
 ﻿using Assimp.Configs;
-using Assimp;
+//using Assimp;
 using glTFLoader.Schema;
 using glTFLoader;
-using OpenTK;
 using System;
-using System.Collections.Generic;
-using System.Drawing.Imaging;
 using System.Drawing;
-using System.Linq;
-using OpenTK.Graphics.OpenGL;
 using System.IO;
-using TextureWrapMode = OpenTK.Graphics.OpenGL.TextureWrapMode;
-using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
-using Lumina3D.Components;
 using Lumina3D.Internal;
-using Lumina3D;
-using static OpenTK.Graphics.OpenGL.GL;
-using Lumina3D.GLumina;
+using System.Numerics;
+using Assimp;
+using Silk.NET;
+using Silk.NET.OpenGL;
+using Matrix4x4 = System.Numerics.Matrix4x4;
+using Silk.NET.Input;
 
 namespace Lumina3D.Components
 {
@@ -28,6 +23,8 @@ namespace Lumina3D.Components
         public Gltf Gltf { get; set; } = null;
         public Color MeshColor { get; set; } = Color.White;
 
+        public Renderer rend { get => Engine.renderer; }
+        public GL Gl { get => Engine.renderer.Gl(); }
         bool buildingCache = false;
 
         public MeshComponent(Assimp.Scene scene)
@@ -76,7 +73,7 @@ namespace Lumina3D.Components
                 {
                     foreach (var material in Gltf.Materials)
                     {
-                        renderer.ShaderCache.CacheShader(Shader.BuildFromGLTF("./shaders/builtin/pbr.vert", "./shaders/builtin/pbr.frag", material));
+                        renderer.ShaderCache.CacheShader(Shader.BuildFromGLTF(Engine,"./shaders/builtin/pbr.vert", "./shaders/builtin/pbr.frag", material));
                     }
                 }
 
@@ -98,39 +95,66 @@ namespace Lumina3D.Components
         /// <param name="viewMatrix"></param>
         /// <param name="projectionMatrix"></param>
         /// <param name="lightDirection"></param>
-        public void Draw(CameraComponent cam, Matrix4 viewMatrix, Matrix4 projectionMatrix, Vector3 lightDirection)
+        public unsafe void Draw(CameraComponent cam, Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix, Vector3 lightDirection)
         {
             foreach (var mesh in Gltf.Meshes)
             {
                 foreach (var primitive in mesh.Primitives)
                 {
-                    //setup gltf stuff
+                    // Setup glTF stuff
                     var vertexAccessor = Gltf.Accessors[primitive.Attributes["POSITION"]];
                     var vertexBufferView = Gltf.BufferViews[(int)vertexAccessor.BufferView];
                     var indexAccessor = Gltf.Accessors[(int)primitive.Indices];
                     var indexBufferView = Gltf.BufferViews[(int)indexAccessor.BufferView];
-                    var material = (int)primitive.Material;
-                    var modelMatrix = viewMatrix + projectionMatrix; //might be wrong i dont know math!
-                    var normalMatrix = new Matrix3(Matrix4.Transpose(Matrix4.Invert(modelMatrix)));
+                    var material = Gltf.Materials[(int)primitive.Material];
 
-                    GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBufferView.Buffer);
+                    // Create and use a shader program
+                    var shaderProgram = renderer.ShaderCache.GetCachedShader(material); // Implement this function
+                    Gl.UseProgram(shaderProgram.ShaderID);
 
-                    // Get the shader from the ShaderCache
-                    int shaderProgram = renderer.ShaderCache.GetCachedShader(material).ShaderID;
-                    GL.UseProgram(shaderProgram);
+                    const uint positionLoc = 0; // We're defining a constant variable named positionLoc with the value 0.
+                    Gl.EnableVertexAttribArray(positionLoc); // We're telling a graphics library (_gl) to enable an attribute at location 0.
+                    Gl.VertexAttribPointer(positionLoc, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), (void*)0);
 
-                    // Set uniform values
-                    GLue.CreateUniform1(shaderProgram, "Time", Engine.Time);
-                    GLue.CreateUniform3(shaderProgram, "LightDirection", lightDirection.X, lightDirection.Y, lightDirection.Z);
-                    GLue.CreateUniform3(shaderProgram, "CameraPos", cam.position.X, cam.position.Y, cam.position.Z);
-                    GLue.CreateMatrix4(shaderProgram, "ViewMatrix", viewMatrix);
-                    GLue.CreateMatrix4(shaderProgram, "ProjectionMatrix", projectionMatrix);
-                    GLue.CreateMatrix3(shaderProgram, "NormalMatrix", normalMatrix);
 
-                    // Draw with the appropriate shader
-                    GL.DrawElements((BeginMode)primitive.Mode, (int)indexAccessor.Count, DrawElementsType.UnsignedInt, 0);
+                    // Bind vertex and index buffers
+                    Gl.BindBuffer(GLEnum.ArrayBuffer, (uint)vertexBufferView.Buffer);
+                    Gl.BindBuffer(GLEnum.ElementArrayBuffer, (uint)indexBufferView.Buffer);
+
+                    // Set shader uniforms (example: model, view, projection matrices)
+                    var modelMatrix = CalculateModelMatrix(viewMatrix, projectionMatrix); // Implement this function
+                    var normalMatrix = CalculateNormalMatrix(modelMatrix);
+
+                    // Draw the mesh
+                    Gl.DrawElements(GLEnum.Triangles, (uint)indexAccessor.Count, DrawElementsType.UnsignedShort, IntPtr.Zero);
+
+                    // Cleanup
+                    Gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+                    Gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
                 }
             }
+        }
+
+
+        public Matrix4x4 CalculateModelMatrix(Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix)
+        {
+            return viewMatrix + projectionMatrix; //might be wrong i dont know
+        }
+
+
+        private Matrix3x3 CalculateNormalMatrix(Matrix4x4 modelMatrix)
+        {
+            Matrix4x4 normalMatrix;
+            Matrix4x4.Invert(modelMatrix, out normalMatrix);
+            normalMatrix = Matrix4x4.Transpose(normalMatrix);
+
+            // Extract the 3x3 normal matrix from the 4x4 matrix
+            return new Matrix3x3(
+                normalMatrix.M11, normalMatrix.M12, normalMatrix.M13,
+                normalMatrix.M21, normalMatrix.M22, normalMatrix.M23,
+                normalMatrix.M31, normalMatrix.M32, normalMatrix.M33);
+
+
         }
 
 

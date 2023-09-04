@@ -1,12 +1,13 @@
-﻿using ECS3D.ECSEngine.Control;
-using Lumina3D.Components;
+﻿using Lumina3D.Components;
 using Lumina3D.Internal;
-using OpenTK.Input;
+using Silk.NET.Input;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Windows.Forms;
+using static System.Windows.Forms.AxHost;
 
 namespace Lumina3D
 {
@@ -14,38 +15,32 @@ namespace Lumina3D
     {
         public CameraComponent activeCamera = null;
 
-        private ECSControl activeECSControl = null;
-
         private Queue<GameEntity> entityQue = new Queue<GameEntity>(); //Used to add entitys to the below list just before updating to avoid editing the collection while enumerating.
         private List<GameEntity> entities = new List<GameEntity>();
-        public float DeltaTime { get; set; }
+        public double DeltaTime { get; set; }
         public Int64 Time = 0;
         public Renderer renderer { get; set; }
 
         bool isRunning = false;
         private Thread updaterThread;
 
-        public Engine(ECSControl control)
+        public Engine()
         {
-            activeECSControl = control;
+
         }
 
         #region "gameloop"/global functions / ecs stuff / gamemanager
         public void StartEngine()
         {
-            renderer = new Renderer(activeECSControl);
+            renderer = new Renderer(this);
+            renderer.InitializeGL();
             isRunning = true;
-            updaterThread = new Thread(Update)
-            {
-                Name = "ECSUpdaterThread",
-                IsBackground = true
-            };
-            updaterThread.Start();
+            
         }
 
         public void Awake()
         {
-            foreach (var entity in GetEntities()) //<- Im not sure if i should use GetEntitys() instead here, well see.
+            foreach (var entity in GetEntities())
             {
                 entity.Awake();
             }
@@ -79,16 +74,56 @@ namespace Lumina3D
             }
         }
 
-        private void HandleInput()
+        private Vector2 lastMousePos;
+
+        public void MoveCame()
         {
-            var kbState = Keyboard.GetState();
-            var mouseState = Mouse.GetState();
-            if(activeCamera != null)
+            var kb = renderer.GetInputContext().Keyboards[0];
+            if (kb.IsKeyPressed(Key.W))
             {
-                activeCamera.MoveCam(kbState);
-                activeCamera.RotateCam(mouseState);
+                activeCamera.Move(CameraComponent.CameraMovement.Forward);
             }
-           
+            else if (kb.IsKeyPressed(Key.S))
+            {
+                activeCamera.Move(CameraComponent.CameraMovement.Backward);
+            }
+            else if (kb.IsKeyPressed(Key.A))
+            {
+                activeCamera.Move(CameraComponent.CameraMovement.Left);
+            }
+            else if (kb.IsKeyPressed(Key.D))
+            {
+                activeCamera.Move(CameraComponent.CameraMovement.Right);
+            }
+        }
+
+        public void RotateCam()
+        {
+            // Retrieve the mouse device
+            var mouse = renderer.GetInputContext().Mice[0];
+
+            // Check if the left mouse button is pressed
+            if (mouse.IsButtonPressed(MouseButton.Left))
+            {
+                // Calculate the mouse delta
+                var mouseDelta = mouse.Position - lastMousePos;
+
+                // Rotate the camera using the mouse delta
+                activeCamera.Rotate(mouseDelta);
+
+
+                // Redraw the scene
+                // RenderFrame();
+            }
+
+            // Update the last mouse position
+            lastMousePos = mouse.Position;
+        }
+
+        public void HandleInput()
+        {
+            RotateCam();
+            MoveCame();
         }
         #endregion 
 
@@ -146,18 +181,8 @@ namespace Lumina3D
         #endregion
 
         #region Helper functions
-        public void FixAspect()
-        {
-            if (activeCamera != null)
-            {
-                activeCamera.AspectRatio = (float)activeECSControl.ClientSize.Width / (float)activeECSControl.ClientSize.Height;
-            }
-        }
 
-        public ECSControl GetControl()
-        {
-            return activeECSControl;
-        }
+
 
         public TreeNode[] GetExplorerNodes()
         {

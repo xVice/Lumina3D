@@ -22,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -31,6 +32,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -54,21 +56,12 @@
     <Compile Include="Components\MeshRenderer.cs" />
     <Compile Include="Components\ShaderCache.cs" />
     <Compile Include="Components\TransformComponent.cs" />
-    <Compile Include="Control\ECSControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="Control\ECSControl.Designer.cs">
-      <DependentUpon>ECSControl.cs</DependentUpon>
-    </Compile>
     <Compile Include="Engine.cs" />
-    <Compile Include="GLue\GLue.cs" />
     <Compile Include="Internal\EntityComponent.cs" />
     <Compile Include="Internal\GameEntity.cs" />
     <Compile Include="Internal\Renderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="Control\ECSControl.resx">
-      <DependentUpon>ECSControl.cs</DependentUpon>
-    </EmbeddedResource>
+    <Compile Include="Utils\MathHelper.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -98,9 +91,10 @@
     <PackageReference Include="glTF2Loader">
       <Version>1.0.0</Version>
     </PackageReference>
-    <PackageReference Include="OpenTK.GLControl">
-      <Version>3.3.3</Version>
+    <PackageReference Include="Silk.NET">
+      <Version>2.17.1</Version>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

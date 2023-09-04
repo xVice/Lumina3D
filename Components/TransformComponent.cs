@@ -1,7 +1,7 @@
-﻿using OpenTK;
-using Lumina3D.Components;
+﻿using Lumina3D.Components;
 using Lumina3D.Internal;
 using Lumina3D;
+using System.Numerics;
 
 namespace Lumina3D.Components
 {
@@ -28,11 +28,11 @@ namespace Lumina3D.Components
         }
 
         // Convenience methods to get transformation matrices
-        public Matrix4 GetModelMatrix()
+        public Matrix4x4 GetModelMatrix()
         {
-            Matrix4 translationMatrix = Matrix4.CreateTranslation(Position);
-            Matrix4 rotationMatrix = Matrix4.CreateFromQuaternion(Rotation);
-            Matrix4 scaleMatrix = Matrix4.CreateScale(Scale);
+            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(Position);
+            Matrix4x4 rotationMatrix = Matrix4x4.CreateFromQuaternion(Rotation);
+            Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(Scale);
 
             return translationMatrix * rotationMatrix * scaleMatrix;
 

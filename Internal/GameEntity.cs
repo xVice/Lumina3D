@@ -1,7 +1,7 @@
 ﻿using Lumina3D.Components;
-using OpenTK;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Lumina3D.Internal
 {
@@ -79,11 +79,15 @@ namespace Lumina3D.Internal
 
         public void Update()
         {
-            for(int i = 0; i < ComponentQue.Count; i++)
+            if(ComponentQue.Count > 0)
             {
-                var comp = ComponentQue.Dequeue();
-                Components.Add(comp.Item1, comp.Item2);
+                for (int i = 0; i < ComponentQue.Count; i++)
+                {
+                    var comp = ComponentQue.Dequeue();
+                    Components.Add(comp.Item1, comp.Item2);
+                }
             }
+
             foreach (var component in Components.Values)
             {
                 component.EarlyUpdate();
