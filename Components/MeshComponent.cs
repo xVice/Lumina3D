@@ -40,14 +40,7 @@ namespace Lumina3D.Components
             Gltf = gltf;
         }
 
-        private static void CheckGLError(string operation)
-        {
-            ErrorCode errorCode = GL.GetError();
-            if (errorCode != ErrorCode.NoError)
-            {
-                throw new Exception($"OpenGL error ({errorCode}) occurred during {operation}");
-            }
-        }
+  
 
 
         public override void Awake()
@@ -63,6 +56,9 @@ namespace Lumina3D.Components
 
         }
 
+        /// <summary>
+        /// BuildShaderCache for the mesh
+        /// </summary>
         public void BuildShaderCache()
         {
             if (!buildingCache)
@@ -95,6 +91,13 @@ namespace Lumina3D.Components
         }
 
         //Could make multiple draw method for .stl or .obj, .gltf has everything though so why not use it?
+        /// <summary>
+        /// Draws the mesh to the current gl context given all the args
+        /// </summary>
+        /// <param name="cam"></param>
+        /// <param name="viewMatrix"></param>
+        /// <param name="projectionMatrix"></param>
+        /// <param name="lightDirection"></param>
         public void Draw(CameraComponent cam, Matrix4 viewMatrix, Matrix4 projectionMatrix, Vector3 lightDirection)
         {
             foreach (var mesh in Gltf.Meshes)
@@ -131,7 +134,7 @@ namespace Lumina3D.Components
         }
 
 
-
+        //Loads a file using assimp, isnt used anymore.
         public static MeshComponent LoadFromFile(string filePath, PostProcessSteps ppSteps, params PropertyConfig[] configs)
         {
             if (!File.Exists(filePath))
@@ -154,6 +157,12 @@ namespace Lumina3D.Components
             return model;
         }
 
+        //Loads a gltf file 
+        /// <summary>
+        /// Returns a MeshComponent from a .GLTF file.
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
         public static MeshComponent LoadFromFile(string filePath)
         {
             if (!File.Exists(filePath))

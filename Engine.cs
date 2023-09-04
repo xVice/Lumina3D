@@ -1,20 +1,12 @@
-﻿using Assimp.Configs;
-using ECS3D.ECSEngine.Control;
+﻿using ECS3D.ECSEngine.Control;
 using Lumina3D.Components;
 using Lumina3D.Internal;
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Lumina3D
 {
@@ -24,6 +16,7 @@ namespace Lumina3D
 
         private ECSControl activeECSControl = null;
 
+        private Queue<GameEntity> entityQue = new Queue<GameEntity>(); //Used to add entitys to the below list just before updating to avoid editing the collection while enumerating.
         private List<GameEntity> entities = new List<GameEntity>();
         public float DeltaTime { get; set; }
         public Int64 Time = 0;
@@ -52,7 +45,7 @@ namespace Lumina3D
 
         public void Awake()
         {
-            foreach (var entity in entities)
+            foreach (var entity in GetEntities()) //<- Im not sure if i should use GetEntitys() instead here, well see.
             {
                 entity.Awake();
             }
@@ -72,9 +65,17 @@ namespace Lumina3D
 
         private void UpdateEntitys()
         {
+            if(entityQue.Count > 0) //Check if any ents are qued
+            {
+                for (int i = 0; i < entityQue.Count; i++)
+                {
+                    entities.Add(entityQue.Dequeue()); //merge queded entites into the list, did this to avoid editing the collection while enumerating.
+                }
+            }
+
             foreach (var ent in entities)
             {
-                ent.Update();
+                ent.Update(); //Update all entities instantiated in the engine, should be only in a scene though.
             }
         }
 
@@ -103,13 +104,16 @@ namespace Lumina3D
         {
             GameEntity entity = new GameEntity { Id = entities.Count + 1, EntityName = name };
             entity.Engine = this;
-            entities.Add(entity);
-
+            entityQue.Enqueue(entity);
             return entity;
         }
 
         public List<GameEntity> GetEntities()
         {
+            //make sure we allways have accsess to both, un"cached" entitys and "cached"/listed items.
+            var entities = new List<GameEntity>();
+            entities.AddRange(entities.ToArray());
+            entities.AddRange(entityQue.ToArray());
             return entities;
         }
         #endregion
@@ -120,8 +124,8 @@ namespace Lumina3D
         {
             var type = typeof(T);
 
-            var components = entities
-                .SelectMany(ent => ent.Components.Values.Where(x => x.GetType() == type))
+            var components = GetEntities()
+                .SelectMany(ent => ent.GetComponents().Values.Where(x => x.GetType() == type))
                 .Cast<T>() // Explicitly cast to type T
                 .ToList();
 
@@ -131,7 +135,7 @@ namespace Lumina3D
         public T GetComponent<T>(GameEntity entity) where T : EntityComponent
         {
             Type componentType = typeof(T);
-            if (entity.Components.TryGetValue(componentType, out var component))
+            if (entity.GetComponents().TryGetValue(componentType, out var component))
             {
                 return (T)component;
             }
@@ -175,7 +179,7 @@ namespace Lumina3D
                 // Node for listing components
                 TreeNode componentsNode = new TreeNode("Components");
 
-                foreach (var component in entity.Components)
+                foreach (var component in entity.GetComponents())
                 {
                     TreeNode componentNode = new TreeNode(component.Key.ToString());
 

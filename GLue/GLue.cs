@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using PixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;
+using System.IO;
 
 namespace Lumina3D.GLumina
 {
@@ -88,6 +89,13 @@ namespace Lumina3D.GLumina
             return loc;
         }
 
+        public static int CreateMatrix4(int shaderProg, string name, Matrix4 mat4)
+        {
+            int loc = GL.GetUniformLocation(shaderProg, name);
+            GL.UniformMatrix4(loc, false, ref mat4);
+            return loc;
+        }
+
         public static int SetupVertexAttrib(int shaderProg, string attributeName, int size, VertexAttribPointerType type, bool normalize, int stride, int offset)
         {
             int attribLocation = GL.GetAttribLocation(shaderProg, attributeName);
@@ -97,11 +105,53 @@ namespace Lumina3D.GLumina
         }
 
 
-        public static int CreateMatrix4(int shaderProg, string name, Matrix4 mat4)
+
+
+        private static void CheckGLError(string operation)
         {
-            int loc = GL.GetUniformLocation(shaderProg, name);
-            GL.UniformMatrix4(loc, false, ref mat4);
-            return loc;
+            ErrorCode errorCode = GL.GetError();
+            if (errorCode != ErrorCode.NoError)
+            {
+                string errorMessage = $"OpenGL error ({errorCode}) occurred during {operation}";
+                Console.WriteLine(errorMessage); // Print to console
+                LogErrorToFile(errorMessage); // Log to file
+                throw new Exception(errorMessage);
+            }
+        }
+
+        private static void LogErrorToFile(string errorMessage)
+        {
+            string logDirectory = "./logs/gl/";
+            string logFile = "latest.log";
+            string logPath = Path.Combine(logDirectory, logFile);
+
+            // Create the log directory if it doesn't exist
+            Directory.CreateDirectory(logDirectory);
+
+            // Rename and delete old logs based on specified rules
+            if (File.Exists(logPath))
+            {
+                string timeStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                string oldLogFileName = $"old-{timeStamp}.log";
+                string oldLogPath = Path.Combine(logDirectory, oldLogFileName);
+                File.Move(logPath, oldLogPath);
+
+                string[] logFiles = Directory.GetFiles(logDirectory, "old-*.log");
+                if (logFiles.Length > 10)
+                {
+                    Array.Sort(logFiles);
+                    for (int i = 0; i < logFiles.Length - 5; i++)
+                    {
+                        File.Delete(logFiles[i]);
+                    }
+                }
+            }
+
+            // Write the current error message to the log file
+            using (StreamWriter writer = File.AppendText(logPath))
+            {
+                writer.WriteLine($"[Error - {DateTime.Now}] {errorMessage}");
+            }
         }
 
 
